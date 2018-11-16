@@ -1,0 +1,14 @@
+*.csv
+*.Rproj
+*.Rhistory
+*.RData
+*.shp
+*.dbf
+*.prj
+*.shx
+*.qpj
+*.csv
+*.pdf
+*.Rproj.user
+junk
+Spatial_Inputs
