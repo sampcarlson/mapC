@@ -12,3 +12,5 @@
 *.Rproj.user
 junk
 Spatial_Inputs
+.Rproj.user
+packrat/lib*/
