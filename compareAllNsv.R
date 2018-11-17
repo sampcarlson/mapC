@@ -78,10 +78,16 @@ all_nsv_data$SPI$Value=as.numeric(all_nsv_data$SPI$Value)
 
 #added pointID< filter based on all_nsv$pointIDX (created above)
 nsv_jams_data=read.csv("jamCount_up_data.csv")
-
+nsv_jams_data=nsv_jams_data[nsv_jams_data$pointIDX %in% all_nsv$PointIDX,]
 ##############-----------------compare------------------
 boxplot(list(all=all_nsv_data$elevation$Value,jammed=nsv_jams_data$elevation),range=0)
 
 boxplot(list(all=all_nsv_data$SPI$Value,jammed=nsv_jams_data$SPI))
 
 boxplot(list(all=all_nsv_data$UAA$Value,jammed=nsv_jams_data$UAA),range=0)
+
+boxplot(list(all=all_nsv_data$slope_gis$Value ,jammed=nsv_jams_data$slope_gis ),range=0)
+
+boxplot(list(all=all_nsv_data$latRange10$Value ,jammed=nsv_jams_data$latRange_10 ),range=0)
+
+boxplot(list(all=all_nsv_data$elevRange25$Value ,jammed=nsv_jams_data$elevRange_25 ),range=0)

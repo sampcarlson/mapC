@@ -1,3 +1,4 @@
+packrat::set_opts(vcs.ignore.src = TRUE)
 #grass tools
 #utility for getting attribute tables from grass to a R data frame type
 grassTableToDF=function(grassDF){
