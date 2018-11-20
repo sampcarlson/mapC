@@ -1,5 +1,6 @@
 library(sp)
 library(tidyverse)
+library(reshape2)
 library(rgdal)
 library(RSQLite)
 library(rgrass7)
@@ -42,52 +43,45 @@ print("r.to.vect...")
 execGRASS("r.to.vect", input="above_target",output="above_target_vect",type="area", flags=c("overwrite","quiet"))
 print("v.select...")
 execGRASS("v.select", ainput="nearPoints",binput="above_target_vect",output="nearPoints_upstream", flags=c("overwrite","quiet"))
+
+execGRASS("v.in.ogr",input="C:/Users/Sam/Documents/LeakyRivers/Data/sites/allJamSurveyAreas.shp",output="jamSurveyExtent",flags="quiet")
+execGRASS("v.select", ainput="nearpoints_upstream",binput="jamSurveyExtent",output="points_surveyArea",flags="quiet")
+execGRASS("v.db.addcolumn",map="points_surveyArea",columns="inSurvey")
+execGRASS("v.db.update",map="points_surveyArea",column="inSurvey",value="TRUE")
+
+execGRASS("v.select", ainput="nearpoints_upstream",binput="jamSurveyExtent",output="points_notSurveyArea",flags=c("r","quiet"))
+execGRASS("v.db.addcolumn",map="points_notSurveyArea",columns="inSurvey")
+execGRASS("v.db.update",map="points_notSurveyArea",column="inSurvey",value="FALSE")
+
 #read attribute table back to R
 print("read to R")
-all_nsv=grassTableToDF(execGRASS("v.db.select",map="nearPoints_upstream",intern = T))
+all_nsv=rbind(grassTableToDF(execGRASS("v.db.select",map="points_surveyArea",intern = T)),
+              grassTableToDF(execGRASS("v.db.select",map="points_notSurveyArea",intern = T)))
+all_nsv[,1:4]=data.frame(sapply(all_nsv[,1:3], function(x) as.numeric(as.character(x))))
+
 
 
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 
-all_nsv_data=list(
-  jamCount=all_nsv[all_nsv$DataTypeIDX==28,c("PointIDX","Value")],
-  slope_gis=all_nsv[all_nsv$DataTypeIDX==10,c("PointIDX","Value")],
-  elevRange25=all_nsv[all_nsv$DataTypeIDX==9,c("PointIDX","Value")],
-  latRange10=all_nsv[all_nsv$DataTypeIDX==12,c("PointIDX","Value")],
-  latRange25=all_nsv[all_nsv$DataTypeIDX==13,c("PointIDX","Value")],
-  latRange50=all_nsv[all_nsv$DataTypeIDX==14,c("PointIDX","Value")],
-  elevation=all_nsv[all_nsv$DataTypeIDX==11,c("PointIDX","Value")],
-  UAA=all_nsv[all_nsv$DataTypeIDX==15,c("PointIDX","Value")],
-  SPI=all_nsv[all_nsv$DataTypeIDX==16,c("PointIDX","Value")],
-  landMgmt=all_nsv[all_nsv$DataTypeIDX==26,c("PointIDX","Value")]
-)
-all_nsv_data$jamCount$Value=as.numeric(all_nsv_data$jamCount$Value)
-all_nsv_data$slope_gis$Value=as.numeric(all_nsv_data$slope_gis$Value)
-all_nsv_data$elevRange25$Value=as.numeric(all_nsv_data$elevRange25$Value)
-all_nsv_data$latRange10$Value=as.numeric(all_nsv_data$latRange10$Value)
-all_nsv_data$latRange25$Value=as.numeric(all_nsv_data$latRange25$Value)
-all_nsv_data$latRange50$Value=as.numeric(all_nsv_data$latRange50$Value)
-all_nsv_data$elevation$Value=as.numeric(all_nsv_data$elevation$Value)
-all_nsv_data$UAA$Value=as.numeric(all_nsv_data$UAA$Value)
-all_nsv_data$SPI$Value=as.numeric(all_nsv_data$SPI$Value)
 
+getVarFromDF=function(PointIDX,DataTypeIDX,thisDF=all_nsv){
+  return(mean(thisDF[thisDF$PointIDX==PointIDX & thisDF$DataTypeIDX==DataTypeIDX,"Value"],na.rm=T))
+}
 
+allNsvDF=data.frame(pointIDX=unique(all_nsv$PointIDX))
+allNsvDF$jamCount=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=28)
 
-#############-------------build nsv jam surveyed areas df---------------
-#run in findUpstream.R
+allNsvDF$slope_gis=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=10)
+allNsvDF$elevRange25=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=9)
+allNsvDF$latRange10=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=12)
+allNsvDF$latRange25=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=13)
+allNsvDF$latRange50=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=14)
+allNsvDF$elevation=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=11)
+allNsvDF$UAA=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=15)
+allNsvDF$SPI=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=16)
+allNsvDF$landMgmt=sapply(allNsvDF$pointIDX, getVarFromDF, DataTypeIDX=26)
 
-#added pointID< filter based on all_nsv$pointIDX (created above)
-nsv_jams_data=read.csv("jamCount_up_data.csv")
-nsv_jams_data=nsv_jams_data[nsv_jams_data$pointIDX %in% all_nsv$PointIDX,]
-##############-----------------compare------------------
-boxplot(list(all=all_nsv_data$elevation$Value,jammed=nsv_jams_data$elevation),range=0)
+allNsvDF = left_join(allNsvDF,all_nsv[,c("PointIDX","inSurvey")],by=c("pointIDX"="PointIDX"))
 
-boxplot(list(all=all_nsv_data$SPI$Value,jammed=nsv_jams_data$SPI))
-
-boxplot(list(all=all_nsv_data$UAA$Value,jammed=nsv_jams_data$UAA),range=0)
-
-boxplot(list(all=all_nsv_data$slope_gis$Value ,jammed=nsv_jams_data$slope_gis ),range=0)
-
-boxplot(list(all=all_nsv_data$latRange10$Value ,jammed=nsv_jams_data$latRange_10 ),range=0)
-
-boxplot(list(all=all_nsv_data$elevRange25$Value ,jammed=nsv_jams_data$elevRange_25 ),range=0)
+boxplot(allNsvDF$SPI~allNsvDF$inSurvey)
+boxplot(allNsvDF$SPI~allNsvDF$inSurvey)

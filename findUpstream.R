@@ -88,18 +88,18 @@ options(na.action = "na.omit")
 
 jamCount_data=base::unique(dbGetQuery(leakyDB,"SELECT Data.DataTypeIDX, PointIDX, SourceIDX, Value From Data LEFT JOIN DataTypes ON Data.DataTypeIDX = DataTypes.DataTypeIDX WHERE Metric='Jams per km'"))
 
-# 
-# write.csv(dbGetQuery(leakyDB, paste0("SELECT Reaches.ReachName, Points.PointIDX, Coordinates.X, Coordinates.Y, Coordinates.CoordinateTypeIDX FROM Coordinates LEFT JOIN (
-#                            Reaches LEFT JOIN Points on Reaches.ReachIDX=Points.ReachIDX
-#                            ) ON Coordinates.CoordinateIDX = Reaches.CoordinateIDX WHERE Coordinates.CoordinateTypeIDX = '4' AND PointIDX IN (",paste(jamCount_data$PointIDX,collapse = ', '),")")),
-#           "livers_reaches.csv")
+
+write.csv(dbGetQuery(leakyDB, paste0("SELECT Reaches.ReachName, Points.PointIDX, Coordinates.X, Coordinates.Y, Coordinates.CoordinateTypeIDX FROM Coordinates LEFT JOIN (
+                           Reaches LEFT JOIN Points on Reaches.ReachIDX=Points.ReachIDX
+                           ) ON Coordinates.CoordinateIDX = Reaches.CoordinateIDX WHERE PointIDX IN (",paste(jamCount_data$PointIDX,collapse = ', '),")")),
+          "livers_reaches.csv")
 
 jam_result=lapply(jamCount_data$PointIDX,getUpstream, range=500, upOnly=T)
 gc()
 dbGetQuery(leakyDB,"SELECT * FROM DataTypes")
 
 jamCount_up_data=data.frame(
-  pointIDX=jamCount_data$PointIDX
+  pointIDX=jamCount_data$PointIDX,
   jamCount=sapply(jam_result,getValueFromResult,dataTypeIDXs=28),
   #wetWidth=sapply(jam_result,getValueFromResult,dataTypeIDXs=c(1,2,3)),
   #bankWidth=sapply(jam_result,getValueFromResult,dataTypeIDXs=c(4,5,6)),
